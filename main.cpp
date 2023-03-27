@@ -1,5 +1,6 @@
 #include "avx2.h"
 #include "avx512.h"
+#include "my_avx512.h"
 #include "ggml.h"
 
 #include <benchmark/benchmark.h>
@@ -72,7 +73,18 @@ static void BenchAvx512(benchmark::State& state) {
     SanityCheck(tensors);
 }
 
+static void BenchMyAvx512(benchmark::State& state) {
+    auto tensors = LoadTensors();
+
+    for (auto _ : state) {
+        MyMatMulAvx512(&tensors.src0, &tensors.src1, &tensors.dst, tensors.workspace.data());
+    }
+
+    SanityCheck(tensors);
+}
+
 BENCHMARK(BenchAvx2);
 BENCHMARK(BenchAvx512);
+BENCHMARK(BenchMyAvx512);
 
 BENCHMARK_MAIN();
