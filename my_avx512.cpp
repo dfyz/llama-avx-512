@@ -194,8 +194,8 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
     const __m512i off = _mm512_set1_epi8(8);
 
     for (int i = 0; i < nb; i += 2) {
-        __m512i blk0 = _mm512_maskz_loadu_epi8(blk_2_mask, pd0 + 2*i*bs);
-        __m512i blk1 = _mm512_maskz_loadu_epi8(blk_2_mask, pd1 + 2*i*bs);
+        __m512i blk0 = _mm512_maskz_loadu_epi8(blk_2_mask, pd0 + i*bs);
+        __m512i blk1 = _mm512_maskz_loadu_epi8(blk_2_mask, pd1 + i*bs);
 
         const __m512 scales = _mm512_mul_ps(
             blk_2_scales(blk0),
