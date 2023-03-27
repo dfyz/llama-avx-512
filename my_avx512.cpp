@@ -216,7 +216,6 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
         );
         const __m512i diff = _mm512_sub_epi32(aa, bb);
 
-
         acc = _mm512_fmadd_ps(
             scales,
             _mm512_cvtepi32_ps(diff),
