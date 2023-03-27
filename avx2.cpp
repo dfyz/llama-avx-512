@@ -147,17 +147,17 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
         const __m256i off = _mm256_set1_epi8( 8 );
         by = _mm256_sub_epi8( by, off );
         // These weird multiplication instructions compute a0*b0 + a1*b1 for uint8_t a, int8_t b
-        __m256i p1 = _mm256_maddubs_epi16( bx, by );
-        __m256i p2 = _mm256_maddubs_epi16( off, by );
-        __m256i p16 = _mm256_sub_epi16( p1, p2 );
+        __m256i aa = _mm256_dpbusd_epi32( _mm256_setzero_ps(), bx, by);
+        __m256i bb = _mm256_dpbusd_epi32( _mm256_setzero_ps(), off, by );
+        __m256i cc = _mm256_sub_epi32(aa, bb);
 
         // Competes for the same ports as _mm256_maddubs_epi16, needs the constant vector with ones,
         // and takes 3-5 cycles of latency
         // However, that's 1 instruction instead of 3.
-        __m256i i32 = _mm256_madd_epi16( p16, _mm256_set1_epi16( 1 ) );
+        // __m256i i32 = _mm256_madd_epi16( p16, _mm256_set1_epi16( 1 ) );
 
         // Convert int32_t to float
-        __m256 p = _mm256_cvtepi32_ps( i32 );
+        __m256 p = _mm256_cvtepi32_ps( cc );
         // Apply the scale, and accumulate
         acc = _mm256_fmadd_ps( scale, p, acc );
     }
