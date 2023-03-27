@@ -113,6 +113,45 @@ static void quantize_row_q4_0(const float * __restrict__ x, void * __restrict__ 
     }
 }
 
+static inline __m512 dot_q4_0_oneblock_avx512(
+    __m512 acc,
+    const uint8_t * pd0,
+    const uint8_t * pd1,
+    const uint8_t * pb0,
+    const uint8_t * pb1,
+    size_t bs,
+    int i
+) {
+    const float * d0_0 = (const float *) (pd0 + i*bs);
+    const float * d1_0 = (const float *) (pd1 + i*bs);
+
+    const uint8_t * __restrict__ p0 = pb0 + (i+0)*bs;
+    const uint8_t * __restrict__ p1 = pb1 + (i+0)*bs;
+
+    // Compute combined scale for the block
+    float scaleScalar = d0_0[0] * d1_0[0];
+    __m512 scale = _mm512_set1_ps( scaleScalar );
+
+    __m256i bx = bytesFromNibbles( p0 );
+    __m256i by = bytesFromNibbles( p1 );
+
+    // Now we have a vector with bytes in [ 0 .. 15 ] interval. Offset them into [ -8 .. +7 ] interval.
+    const __m256i off = _mm256_set1_epi8( 8 );
+    bx = _mm256_sub_epi8( bx, off );
+    by = _mm256_sub_epi8( by, off );
+
+    // Sign-extend 16 signed bytes into int16_t
+    __m512i x32 = _mm512_cvtepi8_epi16( bx );
+    __m512i y32 = _mm512_cvtepi8_epi16( by );
+    // Compute products of int16_t integers, add pairwise
+    __m512i i64 = _mm512_madd_epi16( x32, y32 );
+
+    // Convert int32_t to float
+    __m512 p = _mm512_cvtepi32_ps( i64 );
+    // Apply the scale, and accumulate
+    return _mm512_fmadd_ps( scale, p, acc );
+}
+
 inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const void * __restrict__ x, const void * __restrict__ y) {
     const int nb = n / QK;
 
@@ -127,58 +166,38 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
     float sumf = 0.0;
 
     // Initialize accumulator with zeros
-    __m256 acc = _mm256_setzero_ps();
+    __m512 acc0 = _mm512_setzero_ps();
+    __m512 acc1 = _mm512_setzero_ps();
 
-    // Main loop
-    for (int i = 0; i < nb; ++i) {
-        const float * d0_0 = (const float *) (pd0 + i*bs);
-        const float * d1_0 = (const float *) (pd1 + i*bs);
+    const int superblock_size = 8;
+    const int superblock_count = nb / superblock_size;
+    const int remainder = nb % superblock_size;
 
-        const uint8_t * __restrict__ p0 = pb0 + i*bs;
-        const uint8_t * __restrict__ p1 = pb1 + i*bs;
+    for (int superblock_ix = 0; superblock_ix < superblock_count; superblock_ix += 1) {
+        int i = superblock_ix * superblock_size;
 
-        // Compute combined scale for the block
-        const __m256 scale = _mm256_mul_ps( _mm256_broadcast_ss( d0_0 ), _mm256_broadcast_ss( d1_0 ) );
-
-        // Load 16 bytes, and unpack 4 bit fields into bytes, making 32 bytes
-        __m256i bx = bytesFromNibbles( p0 );
-        __m256i by = bytesFromNibbles( p1 );
-
-        // Now we have a vector with bytes in [ 0 .. 15 ] interval. Offset them into [ -8 .. +7 ] interval.
-        const __m256i off = _mm256_set1_epi8( 8 );
-        bx = _mm256_sub_epi8( bx, off );
-        by = _mm256_sub_epi8( by, off );
-
-        // Sign-extend first 16 signed bytes into int16_t
-        __m256i x16 = _mm256_cvtepi8_epi16( _mm256_castsi256_si128( bx ) );
-        __m256i y16 = _mm256_cvtepi8_epi16( _mm256_castsi256_si128( by ) );
-        // Compute products of int16_t integers, add pairwise
-        __m256i i32 = _mm256_madd_epi16( x16, y16 );
-
-        // Sign-extend last 16 signed bytes into int16_t vectors
-        x16 = _mm256_cvtepi8_epi16( _mm256_extracti128_si256( bx, 1 ) );
-        y16 = _mm256_cvtepi8_epi16( _mm256_extracti128_si256( by, 1 ) );
-        // Accumulate products of int16_t integers
-        i32 = _mm256_add_epi32( i32, _mm256_madd_epi16( x16, y16 ) );
-
-        // Convert int32_t to float
-        __m256 p = _mm256_cvtepi32_ps( i32 );
-        // Apply the scale, and accumulate
-        acc = _mm256_fmadd_ps( scale, p, acc );
+        acc0 = dot_q4_0_oneblock_avx512( acc0, pd0, pd1, pb0, pb1, bs, i+0 );
+        acc1 = dot_q4_0_oneblock_avx512( acc1, pd0, pd1, pb0, pb1, bs, i+1 );
+        acc0 = dot_q4_0_oneblock_avx512( acc0, pd0, pd1, pb0, pb1, bs, i+2 );
+        acc1 = dot_q4_0_oneblock_avx512( acc1, pd0, pd1, pb0, pb1, bs, i+3 );
+        acc0 = dot_q4_0_oneblock_avx512( acc0, pd0, pd1, pb0, pb1, bs, i+4 );
+        acc1 = dot_q4_0_oneblock_avx512( acc1, pd0, pd1, pb0, pb1, bs, i+5 );
+        acc0 = dot_q4_0_oneblock_avx512( acc0, pd0, pd1, pb0, pb1, bs, i+6 );
+        acc1 = dot_q4_0_oneblock_avx512( acc1, pd0, pd1, pb0, pb1, bs, i+7 );
     }
 
-    // Return horizontal sum of the acc vector
-    __m128 res = _mm256_extractf128_ps( acc, 1 );
-    res = _mm_add_ps( res, _mm256_castps256_ps128( acc ) );
-    res = _mm_add_ps( res, _mm_movehl_ps( res, res ) );
-    res = _mm_add_ss( res, _mm_movehdup_ps( res ) );
+    // Remainders
+    for (int i = superblock_count * superblock_size; i < nb; ++i) {
+        acc0 = dot_q4_0_oneblock_avx512( acc0, pd0, pd1, pb0, pb1, bs, i );
+    }
 
-    sumf = _mm_cvtss_f32( res );
+    // Horizontal sum of all lanes of the accumulator
+    sumf = _mm512_reduce_add_ps( acc0 ) + _mm512_reduce_add_ps( acc1 );
 
     *s = sumf;
 }
 
-void MatMulAvx2(
+void MatMulAvx512(
     ggml_tensor* src0,
     ggml_tensor* src1,
     ggml_tensor* dst,

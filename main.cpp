@@ -1,4 +1,5 @@
 #include "avx2.h"
+#include "avx512.h"
 #include "ggml.h"
 
 #include <benchmark/benchmark.h>
@@ -36,26 +37,42 @@ Tensors LoadTensors() {
     return res;
 }
 
-static void BenchAvx2(benchmark::State& state) {
-  auto tensors = LoadTensors();
-
-  for (auto _ : state) {
-    MatMulAvx2(&tensors.src0, &tensors.src1, &tensors.dst, tensors.workspace.data());
-  }
-
-  const float* actual = reinterpret_cast<const float*>(tensors.dst.data);
-  const float* expected = reinterpret_cast<const float*>(tensors.ref_dst.data);
-  for (size_t i = 0; i < tensors.dst.NumElems(); ++i) {
-    const auto a = actual[i];
-    const auto e = expected[i];
-    if (std::isnan(a) != std::isnan(e) || std::abs(a - e) > 1e-6) {
-        std::stringstream ss;
-        ss << "Sanity check failed at index #" << i << ": " << a << " != " << e;
-        throw std::runtime_error(ss.str());
+void SanityCheck(const Tensors& tensors) {
+    const float* actual = reinterpret_cast<const float*>(tensors.dst.data);
+    const float* expected = reinterpret_cast<const float*>(tensors.ref_dst.data);
+    for (size_t i = 0; i < tensors.dst.NumElems(); ++i) {
+        const auto a = actual[i];
+        const auto e = expected[i];
+        if (std::isnan(a) != std::isnan(e) || std::abs(a - e) > 1e-6) {
+            std::stringstream ss;
+            ss << "Sanity check failed at index #" << i << ": " << a << " != " << e;
+            throw std::runtime_error(ss.str());
+        }
     }
-  }
+}
+
+static void BenchAvx2(benchmark::State& state) {
+    auto tensors = LoadTensors();
+
+    for (auto _ : state) {
+        MatMulAvx2(&tensors.src0, &tensors.src1, &tensors.dst, tensors.workspace.data());
+    }
+
+    SanityCheck(tensors);
+}
+
+
+static void BenchAvx512(benchmark::State& state) {
+    auto tensors = LoadTensors();
+
+    for (auto _ : state) {
+        MatMulAvx512(&tensors.src0, &tensors.src1, &tensors.dst, tensors.workspace.data());
+    }
+
+    SanityCheck(tensors);
 }
 
 BENCHMARK(BenchAvx2);
+BENCHMARK(BenchAvx512);
 
 BENCHMARK_MAIN();
