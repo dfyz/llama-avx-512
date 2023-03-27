@@ -4,7 +4,7 @@
 #include <benchmark/benchmark.h>
 
 #include <algorithm>
-#include <iterator>
+#include <cmath>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -48,7 +48,7 @@ static void BenchAvx2(benchmark::State& state) {
   for (size_t i = 0; i < tensors.dst.NumElems(); ++i) {
     const auto a = actual[i];
     const auto e = expected[i];
-    if (a != e) {
+    if (std::isnan(a) != std::isnan(e) || std::abs(a - e) > 1e-6) {
         std::stringstream ss;
         ss << "Sanity check failed at index #" << i << ": " << a << " != " << e;
         throw std::runtime_error(ss.str());

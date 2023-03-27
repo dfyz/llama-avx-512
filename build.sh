@@ -1,6 +1,6 @@
 #!/bin/sh
 
-g++ -O3 -o main \
+g++ -O3 -g -std=c++20 -DNDEBUG -mavx2 -mfma -o main \
     main.cpp \
     avx2.cpp \
     ggml.cpp \
