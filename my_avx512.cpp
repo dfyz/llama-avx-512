@@ -153,7 +153,13 @@ static inline __m512 dot_q4_0_oneblock_avx512(
 }
 
 inline static __m512 blk_2_scales(__m512i x) {
-    return _mm512_setzero_ps();
+    const __m512i prm = _mm512_setr_epi32(
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        5, 5, 5, 5,
+        5, 5, 5, 5
+    );
+    return _mm512_permutexvar_ps(prm, (__m512)x);
 }
 
 inline static __m512i blk_2_bytes(__m512i x) {
