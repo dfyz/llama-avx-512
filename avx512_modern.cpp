@@ -1,48 +1,9 @@
-#include "my_avx512.h"
+#include "avx512_modern.h"
 
 #include <immintrin.h>
 
 #include "common-inl.h"
 #include "quantize_avx2-inl.h"
-
-static inline __m512 dot_q4_0_oneblock_avx512(
-    __m512 acc,
-    const uint8_t * pd0,
-    const uint8_t * pd1,
-    const uint8_t * pb0,
-    const uint8_t * pb1,
-    size_t bs,
-    int i
-) {
-    const float * d0_0 = (const float *) (pd0 + i*bs);
-    const float * d1_0 = (const float *) (pd1 + i*bs);
-
-    const uint8_t * __restrict__ p0 = pb0 + (i+0)*bs;
-    const uint8_t * __restrict__ p1 = pb1 + (i+0)*bs;
-
-    // Compute combined scale for the block
-    float scaleScalar = d0_0[0] * d1_0[0];
-    __m512 scale = _mm512_set1_ps( scaleScalar );
-
-    __m256i bx = bytesFromNibbles( p0 );
-    __m256i by = bytesFromNibbles( p1 );
-
-    // Now we have a vector with bytes in [ 0 .. 15 ] interval. Offset them into [ -8 .. +7 ] interval.
-    const __m256i off = _mm256_set1_epi8( 8 );
-    bx = _mm256_sub_epi8( bx, off );
-    by = _mm256_sub_epi8( by, off );
-
-    // Sign-extend 16 signed bytes into int16_t
-    __m512i x32 = _mm512_cvtepi8_epi16( bx );
-    __m512i y32 = _mm512_cvtepi8_epi16( by );
-    // Compute products of int16_t integers, add pairwise
-    __m512i i64 = _mm512_madd_epi16( x32, y32 );
-
-    // Convert int32_t to float
-    __m512 p = _mm512_cvtepi32_ps( i64 );
-    // Apply the scale, and accumulate
-    return _mm512_fmadd_ps( scale, p, acc );
-}
 
 inline static __m512 blk_2_scales(__m512i x) {
     const __m512i prm = _mm512_set_epi32(

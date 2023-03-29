@@ -2,7 +2,7 @@
 #include "avx2_const_me.h"
 #include "avx512.h"
 #include "avx512_no_unroll.h"
-#include "my_avx512.h"
+#include "avx512_modern.h"
 #include "ggml.h"
 
 #include <benchmark/benchmark.h>

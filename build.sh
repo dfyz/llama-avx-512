@@ -6,6 +6,6 @@ g++ -O3 -g -std=c++20 -DNDEBUG -mavx2 -mavx512f -mavx512bw -mfma -mavx512vnni -m
     avx2_const_me.cpp \
     avx512.cpp \
     avx512_no_unroll.cpp \
-    my_avx512.cpp \
+    avx512_modern.cpp \
     ggml.cpp \
     $(pkg-config --libs --cflags benchmark)
