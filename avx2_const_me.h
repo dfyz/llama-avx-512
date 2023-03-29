@@ -2,7 +2,7 @@
 
 #include "ggml.h"
 
-void MatMulAvx512Modern(
+void MatMulAvx2ConstMe(
     ggml_tensor* src0,
     ggml_tensor* src1,
     ggml_tensor* dst,

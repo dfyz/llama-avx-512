@@ -119,6 +119,6 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
     *s = _mm512_reduce_add_ps( acc );
 }
 
-#define MAIN_FUNC_NAME MyMatMulAvx512
+#define MAIN_FUNC_NAME MatMulAvx512Modern
 
 #include "main_loop-inl.h"

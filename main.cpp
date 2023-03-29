@@ -1,5 +1,7 @@
 #include "avx2.h"
+#include "avx2_const_me.h"
 #include "avx512.h"
+#include "avx512_no_unroll.h"
 #include "my_avx512.h"
 #include "ggml.h"
 
@@ -62,6 +64,16 @@ static void Avx2Vanilla(benchmark::State& state) {
     SanityCheck(tensors);
 }
 
+static void Avx2ConstMe(benchmark::State& state) {
+    auto tensors = LoadTensors();
+
+    for (auto _ : state) {
+        MatMulAvx2ConstMe(&tensors.src0, &tensors.src1, &tensors.dst, tensors.workspace.data());
+    }
+
+    SanityCheck(tensors);
+}
+
 static void Avx512Vanilla(benchmark::State& state) {
     auto tensors = LoadTensors();
 
@@ -72,19 +84,31 @@ static void Avx512Vanilla(benchmark::State& state) {
     SanityCheck(tensors);
 }
 
+static void Avx512NoUnroll(benchmark::State& state) {
+    auto tensors = LoadTensors();
+
+    for (auto _ : state) {
+        MatMulAvx512NoUnroll(&tensors.src0, &tensors.src1, &tensors.dst, tensors.workspace.data());
+    }
+
+    SanityCheck(tensors);
+}
+
 static void Avx512Modern(benchmark::State& state) {
     auto tensors = LoadTensors();
 
     for (auto _ : state) {
-        MyMatMulAvx512(&tensors.src0, &tensors.src1, &tensors.dst, tensors.workspace.data());
+        MatMulAvx512Modern(&tensors.src0, &tensors.src1, &tensors.dst, tensors.workspace.data());
     }
 
     SanityCheck(tensors);
 }
 
 BENCHMARK(Avx2Vanilla)->Name("AVX2/vanilla");
-BENCHMARK(Avx512Vanilla)->Name("AVX-512/vanilla");
+BENCHMARK(Avx2ConstMe)->Name("AVX2/const-me");
 
+BENCHMARK(Avx512Vanilla)->Name("AVX-512/vanilla");
+BENCHMARK(Avx512NoUnroll)->Name("AVX-512/no-unroll");
 BENCHMARK(Avx512Modern)->Name("AVX-512/modern");
 
 BENCHMARK_MAIN();
