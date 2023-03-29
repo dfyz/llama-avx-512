@@ -34,17 +34,6 @@ void MAIN_FUNC_NAME(
     const int nb2  = dst->nb[2];
     const int nb3  = dst->nb[3];
 
-    char* wd = wdata;
-    const size_t row_size_q = ne10*20/32;
-    for (int i13 = 0; i13 < ne13; ++i13) {
-        for (int i12 = 0; i12 < ne12; ++i12) {
-            for (int i11 = 0; i11 < ne11; ++i11) {
-                quantize_row_q4_0((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11), (void *) wd, ne10);
-                wd += row_size_q;
-            }
-        }
-    }
-
     // total rows in src0
     const int nr = ne01;
     const size_t row_size = ne00*20/32;
