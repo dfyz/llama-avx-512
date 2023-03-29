@@ -72,7 +72,7 @@ static void Avx512Vanilla(benchmark::State& state) {
     SanityCheck(tensors);
 }
 
-static void MyAvx512(benchmark::State& state) {
+static void Avx512Modern(benchmark::State& state) {
     auto tensors = LoadTensors();
 
     for (auto _ : state) {
@@ -82,8 +82,9 @@ static void MyAvx512(benchmark::State& state) {
     SanityCheck(tensors);
 }
 
-BENCHMARK(Avx2Vanilla);
-BENCHMARK(Avx512Vanilla);
-BENCHMARK(MyAvx512);
+BENCHMARK(Avx2Vanilla)->Name("AVX2/vanilla");
+BENCHMARK(Avx512Vanilla)->Name("AVX-512/vanilla");
+
+BENCHMARK(Avx512Modern)->Name("AVX-512/modern");
 
 BENCHMARK_MAIN();

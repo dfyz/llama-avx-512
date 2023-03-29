@@ -1,11 +1,9 @@
 #include <immintrin.h>
 
-static void quantize_row_q4_0(const float * __restrict__ x, void * __restrict__ y, int k) {
+static void quantize_row_q4_0(const float * __restrict__ x, void * __restrict__ vy, int k) {
     const int nb = k / QK;
-    const size_t bs = sizeof(float) + QK/2;
 
-    uint8_t * __restrict__ pd = ((uint8_t *)y + 0*bs);
-    uint8_t * __restrict__ pb = ((uint8_t *)y + 0*bs + sizeof(float));
+    auto* __restrict__ y = reinterpret_cast<block_q4_0*>(vy);
 
     for (int i = 0; i < nb; i++) {
         // Load elements into 4 AVX vectors
@@ -29,8 +27,7 @@ static void quantize_row_q4_0(const float * __restrict__ x, void * __restrict__ 
 
         // Quantize these floats
         const float d = maxScalar / 7.0f;
-        *(float *)pd = d;
-        pd += bs;
+        y[i].d = d;
         const float id = ( maxScalar != 0.0f ) ? 7.0f / maxScalar : 0.0f;
         const __m256 mul = _mm256_set1_ps( id );
 
@@ -70,7 +67,6 @@ static void quantize_row_q4_0(const float * __restrict__ x, void * __restrict__ 
 
         // Compress the vector into 4 bit/value, and store
         __m128i res = packNibbles( i0 );
-        _mm_storeu_si128( ( __m128i* )pb, res );
-        pb += bs;
+        _mm_storeu_si128( ( __m128i* )y[i].qs, res );
     }
 }
