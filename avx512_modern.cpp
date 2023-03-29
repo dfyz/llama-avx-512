@@ -30,13 +30,11 @@ inline static __m512i blk_2_bytes(__m512i x) {
     return _mm512_and_si512(_mm512_set1_epi8(0xF), z);
 }
 
-inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const void * __restrict__ x, const void * __restrict__ y) {
+inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const void * __restrict__ vx, const void * __restrict__ vy) {
     const int nb = n / QK;
 
-    const size_t bs = sizeof(float) + QK/2;
-
-    const uint8_t * __restrict__ pd0 = ((const uint8_t *)x + 0*bs);
-    const uint8_t * __restrict__ pd1 = ((const uint8_t *)y + 0*bs);
+    const auto * __restrict__ x = reinterpret_cast<const block_q4_0*>(vx);
+    const auto * __restrict__ y = reinterpret_cast<const block_q4_0*>(vy);
 
     float sumf = 0.0;
 
@@ -47,8 +45,8 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
     const __m512i off = _mm512_set1_epi8(8);
 
     for (int i = 0; i < nb; i += 2) {
-        __m512i blk0 = _mm512_maskz_loadu_epi8(blk_2_mask, pd0 + i*bs);
-        __m512i blk1 = _mm512_maskz_loadu_epi8(blk_2_mask, pd1 + i*bs);
+        __m512i blk0 = _mm512_maskz_loadu_epi8(blk_2_mask, &x[i]);
+        __m512i blk1 = _mm512_maskz_loadu_epi8(blk_2_mask, &y[i]);
 
         const __m512 scales = _mm512_mul_ps(
             blk_2_scales(blk0),
