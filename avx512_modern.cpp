@@ -41,12 +41,11 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
     // Initialize accumulator with zeros
     __m512 acc = _mm512_setzero_ps();
 
-    const __mmask64 blk_2_mask = 0xFF'FF'FF'FF'FFUL;
     const __m512i off = _mm512_set1_epi8(8);
 
     for (int i = 0; i < nb; i += 2) {
-        __m512i blk0 = _mm512_maskz_loadu_epi8(blk_2_mask, &x[i]);
-        __m512i blk1 = _mm512_maskz_loadu_epi8(blk_2_mask, &y[i]);
+        __m512i blk0 = _mm512_loadu_si512(&x[i]);
+        __m512i blk1 = _mm512_loadu_si512(&y[i]);
 
         const __m512 scales = _mm512_mul_ps(
             blk_2_scales(blk0),
