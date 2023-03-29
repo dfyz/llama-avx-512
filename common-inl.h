@@ -2,6 +2,15 @@
 
 constexpr size_t QK = 32;
 
+// method 5
+// blocks of QK elements
+// represented with a single float (delta) and QK/2 8-bit ints (i.e QK 4-bit signed integer factors)
+typedef struct {
+    float   d; // delta
+    uint8_t qs[QK / 2]; // nibbles / quants
+} block_q4_0;
+static_assert(sizeof(block_q4_0) == sizeof(float) + QK / 2, "wrong q4_0 block size/padding");
+
 // Unpack 32 4-bit fields into 32 bytes
 // The output vector contains 32 bytes, each one in [ 0 .. 15 ] interval
 static inline __m256i bytesFromNibbles( const uint8_t* rsi )

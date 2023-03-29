@@ -5,53 +5,47 @@
 #include "common-inl.h"
 #include "quantize_avx2-inl.h"
 
-inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const void * __restrict__ x, const void * __restrict__ y) {
+inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const void * __restrict__ vx, const void * __restrict__ vy) {
     const int nb = n / QK;
 
-    const size_t bs = sizeof(float) + QK/2;
-
-    const uint8_t * __restrict__ pd0 = ((const uint8_t *)x + 0*bs);
-    const uint8_t * __restrict__ pd1 = ((const uint8_t *)y + 0*bs);
-
-    const uint8_t * __restrict__ pb0 = ((const uint8_t *)x + 0*bs + sizeof(float));
-    const uint8_t * __restrict__ pb1 = ((const uint8_t *)y + 0*bs + sizeof(float));
+    const auto * __restrict__ x = reinterpret_cast<const block_q4_0*>(vx);
+    const auto * __restrict__ y = reinterpret_cast<const block_q4_0*>(vy);
 
     float sumf = 0.0;
 
-    // Initialize accumulator with zeros
+        // Initialize accumulator with zeros
     __m256 acc = _mm256_setzero_ps();
 
     // Main loop
     for (int i = 0; i < nb; ++i) {
-        const float * d0_0 = (const float *) (pd0 + i*bs);
-        const float * d1_0 = (const float *) (pd1 + i*bs);
-
-        const uint8_t * __restrict__ ptr0 = pb0 + i*bs;
-        const uint8_t * __restrict__ ptr1 = pb1 + i*bs;
-
         // Compute combined scale for the block
-        const __m256 scale = _mm256_mul_ps( _mm256_broadcast_ss( d0_0 ), _mm256_broadcast_ss( d1_0 ) );
+        const __m256 d = _mm256_mul_ps( _mm256_broadcast_ss( &x[i].d ), _mm256_broadcast_ss( &y[i].d ) );
 
         // Load 16 bytes, and unpack 4 bit fields into bytes, making 32 bytes
-        __m256i bx = bytesFromNibbles( ptr0 );
-        __m256i by = bytesFromNibbles( ptr1 );
+        __m256i bx = bytesFromNibbles( x[i].qs );
+        __m256i by = bytesFromNibbles( y[i].qs );
 
+        // Now we have a vector with bytes in [ 0 .. 15 ] interval. Offset them into [ -8 .. +7 ] interval.
         const __m256i off = _mm256_set1_epi8( 8 );
+        bx = _mm256_sub_epi8( bx, off );
         by = _mm256_sub_epi8( by, off );
-        // These weird multiplication instructions compute a0*b0 + a1*b1 for uint8_t a, int8_t b
-        __m256i aa = _mm256_dpbusd_epi32( _mm256_setzero_ps(), bx, by);
-        __m256i bb = _mm256_dpbusd_epi32( _mm256_setzero_ps(), off, by );
-        __m256i cc = _mm256_sub_epi32(aa, bb);
 
-        // Competes for the same ports as _mm256_maddubs_epi16, needs the constant vector with ones,
-        // and takes 3-5 cycles of latency
-        // However, that's 1 instruction instead of 3.
-        // __m256i i32 = _mm256_madd_epi16( p16, _mm256_set1_epi16( 1 ) );
+        // Sign-extend first 16 signed bytes into int16_t
+        __m256i x16 = _mm256_cvtepi8_epi16( _mm256_castsi256_si128( bx ) );
+        __m256i y16 = _mm256_cvtepi8_epi16( _mm256_castsi256_si128( by ) );
+        // Compute products of int16_t integers, add pairwise
+        __m256i i32 = _mm256_madd_epi16( x16, y16 );
+
+        // Sign-extend last 16 signed bytes into int16_t vectors
+        x16 = _mm256_cvtepi8_epi16( _mm256_extracti128_si256( bx, 1 ) );
+        y16 = _mm256_cvtepi8_epi16( _mm256_extracti128_si256( by, 1 ) );
+        // Accumulate products of int16_t integers
+        i32 = _mm256_add_epi32( i32, _mm256_madd_epi16( x16, y16 ) );
 
         // Convert int32_t to float
-        __m256 p = _mm256_cvtepi32_ps( cc );
+        __m256 p = _mm256_cvtepi32_ps( i32 );
         // Apply the scale, and accumulate
-        acc = _mm256_fmadd_ps( scale, p, acc );
+        acc = _mm256_fmadd_ps( d, p, acc );
     }
 
     // Return horizontal sum of the acc vector

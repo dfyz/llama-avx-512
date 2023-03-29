@@ -35,16 +35,19 @@ void MAIN_FUNC_NAME(
     const int nb3  = dst->nb[3];
 
     char* wd = wdata;
+    const size_t row_size_q = ne10*20/32;
     for (int i13 = 0; i13 < ne13; ++i13) {
         for (int i12 = 0; i12 < ne12; ++i12) {
             for (int i11 = 0; i11 < ne11; ++i11) {
                 quantize_row_q4_0((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11), (void *) wd, ne10);
-                wd += (ne10*20)/32;
+                wd += row_size_q;
             }
         }
     }
 
+    // total rows in src0
     const int nr = ne01*ne02*ne03;
+    const size_t row_size = ne00*20/32;
 
     for (int ir = 0; ir < nr; ++ir) {
         // src0 indices
@@ -60,12 +63,12 @@ void MAIN_FUNC_NAME(
         const int i3 = i03;
 
         void * src0_row = (void *) ((char *) src0->data + (i01*nb01 + i02*nb02 + i03*nb03));
-        char * src1_col =          ((char *)      wdata + (      (0 + i12*ne11 + i13*ne12*ne11)*ne00*20)/32);
+        char * src1_col =          ((char *)      wdata + (      (0 + i12*ne11 + i13*ne12*ne11)*row_size));
 
         float * dst_col = (float *) ((char *) dst->data + (i0*nb0 + 0*nb1 + i2*nb2 + i3*nb3));
 
         for (int ic = 0; ic < ne11; ++ic) {
-            ggml_vec_dot_q4_0(ne00, &dst_col[ic*ne0], src0_row, ((void *) (src1_col + (ic*ne00*20)/32)));
+            ggml_vec_dot_q4_0(ne00, &dst_col[ic*ne0], src0_row, (void *) (src1_col + ic*row_size));
         }
     }
 }
