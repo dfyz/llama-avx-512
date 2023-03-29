@@ -5,16 +5,6 @@
 #include "common-inl.h"
 #include "quantize_avx2-inl.h"
 
-inline static __m512 blk_2_scales(__m512i x) {
-    const __m512i prm = _mm512_set_epi32(
-        5, 5, 5, 5,
-        5, 5, 5, 5,
-        0, 0, 0, 0,
-        0, 0, 0, 0
-    );
-    return _mm512_permutexvar_ps(prm, (__m512)x);
-}
-
 inline static __m512i blk_2_bytes(__m512i x) {
     const __m512i prm = _mm512_set_epi8(
         39, 39, 38, 38, 37, 37, 36, 36, 35, 35, 34, 34, 33, 33, 32, 32,
@@ -43,15 +33,21 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
 
     const __mmask64 blk_2_mask = 0xFF'FF'FF'FF'FFUL;
     const __m512i off = _mm512_set1_epi8(8);
+    const __m512i prm = _mm512_set_epi32(
+        5, 5, 5, 5,
+        5, 5, 5, 5,
+        0, 0, 0, 0,
+        0, 0, 0, 0
+    );
 
     for (int i = 0; i < nb; i += 2) {
         __m512i blk0 = _mm512_maskz_loadu_epi8(blk_2_mask, &x[i]);
         __m512i blk1 = _mm512_maskz_loadu_epi8(blk_2_mask, &y[i]);
 
-        const __m512 scales = _mm512_mul_ps(
-            blk_2_scales(blk0),
-            blk_2_scales(blk1)
-        );
+        const __m512 scales = _mm512_permutexvar_ps(prm, _mm512_mul_ps(
+            (__m512)blk0,
+            (__m512)blk1
+        ));
 
         const __m512i bx = blk_2_bytes(blk0);
         __m512i by = blk_2_bytes(blk1);
