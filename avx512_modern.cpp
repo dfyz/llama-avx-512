@@ -57,15 +57,11 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
         __m512i by = blk_2_bytes(blk1);
         by = _mm512_sub_epi8(by, off);
 
-        const __m512i aa = _mm512_dpbusds_epi32(
-            _mm512_setzero_epi32(),
-            bx, by
-        );
-        const __m512i bb = _mm512_dpbusds_epi32(
-            _mm512_setzero_epi32(),
-            off, by
-        );
-        const __m512i diff = _mm512_sub_epi32(aa, bb);
+        __m512i p1 = _mm512_maddubs_epi16( bx, by );
+        __m512i p2 = _mm512_maddubs_epi16( off, by );
+        __m512i p16 = _mm512_sub_epi16( p1, p2 );
+
+        __m512i diff = _mm512_madd_epi16( p16, _mm512_set1_epi16( 1 ) );
 
         acc = _mm512_fmadd_ps(
             scales,
