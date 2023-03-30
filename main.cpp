@@ -111,4 +111,10 @@ BENCHMARK(Avx512Vanilla)->Name("AVX-512/vanilla");
 BENCHMARK(Avx512NoUnroll)->Name("AVX-512/no-unroll");
 BENCHMARK(Avx512Modern)->Name("AVX-512/modern");
 
-BENCHMARK_MAIN();
+//BENCHMARK_MAIN();
+
+int main() {
+    auto tensors = LoadTensors();
+    MatMulAvx512Modern(&tensors.src0, &tensors.src1, &tensors.dst, tensors.workspace.data());
+    SanityCheck(tensors);
+}
