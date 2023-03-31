@@ -1,15 +1,13 @@
 section .text
 global _start
 
-n_blocks equ 1_000_000
+n_blocks equ 10_000
 n_bytes equ 40 * n_blocks
+iters equ 100000
 
 clang:
-    xor r15, r15
-    xor rbx, rbx
     mov r8, n_blocks
     mov r9, 0xffffffffff
-
     vmovaps zmm1, [rel data_zmm1]
     vmovdqa64 zmm2, [rel data_zmm2]
     vpbroadcastq zmm3, qword [rel data_zmm3]
@@ -17,6 +15,13 @@ clang:
     vmovdqa64 zmm5, [rel data_zmm5]
     vpbroadcastd zmm6, dword [rel data_zmm6]
     vpbroadcastd zmm8, dword [rel data_zmm8]
+
+    xor rdi, rdi
+
+outer_loop:
+    vpxord  xmm17, xmm17, xmm17
+    xor r15, r15
+    xor ebx, ebx
 
 loop:
     kmovq   k1, r9
@@ -42,6 +47,10 @@ loop:
     add     rbx, 0x28
     cmp     r15, r8
     jb      loop
+
+    inc rdi
+    cmp rdi, iters
+    jne outer_loop
 
     ret
 
