@@ -119,8 +119,8 @@ _start:
     lea rdx, [rel vec1]
     lea rax, [rel vec2]
 
-    call clang
-    ; call gcc
+    ; call clang
+    call gcc
 
     xor rdi, rdi
     mov rax, 0x3c
