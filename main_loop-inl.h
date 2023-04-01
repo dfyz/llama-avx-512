@@ -1,3 +1,40 @@
+#include <cmath>
+#include <cstring>
+
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+static void quantize_row_q4_0_reference(const float * __restrict__ x, block_q4_0 * __restrict__ y, int k) {
+    const int nb = k / QK;
+
+    uint8_t pp[QK/2];
+
+    for (int i = 0; i < nb; i++) {
+        float amax = 0.0f; // absolute max
+
+        for (int l = 0; l < QK; l++) {
+            const float v = x[i*QK + l];
+            amax = MAX(amax, fabsf(v));
+        }
+
+        const float d = amax / ((1 << 3) - 1);
+        const float id = d ? 1.0f/d : 0.0f;
+
+        y[i].d = d;
+
+        for (int l = 0; l < QK; l += 2) {
+            const float v0 = x[i*QK + l + 0]*id;
+            const float v1 = x[i*QK + l + 1]*id;
+
+            const uint8_t vi0 = (int8_t)roundf(v0) + 8;
+            const uint8_t vi1 = (int8_t)roundf(v1) + 8;
+
+            pp[l/2] = vi0 | (vi1 << 4);
+        }
+
+        memcpy(y[i].qs, pp, sizeof(pp));
+    }
+}
+
 void MAIN_FUNC_NAME(
     ggml_tensor* src0,
     ggml_tensor* src1,
@@ -37,7 +74,7 @@ void MAIN_FUNC_NAME(
     char* wd = wdata;
     const size_t row_size_q = ne10*20/32;
     for (int i11 = 0; i11 < ne11; ++i11) {
-        quantize_row_q4_0((float *)((char *) src1->data + i11*nb11), (void *) wd, ne10);
+        quantize_row_q4_0_reference((float *)((char *) src1->data + i11*nb11), (block_q4_0 *) wd, ne10);
         wd += row_size_q;
     }
 
