@@ -21,6 +21,8 @@ static void quantize_row_q4_0_reference(const float * __restrict__ x, block_q4_0
 
         y[i].d = d;
 
+
+#pragma clang loop vectorize(disable)
         for (int l = 0; l < QK; l += 2) {
             const float v0 = x[i*QK + l + 0]*id;
             const float v1 = x[i*QK + l + 1]*id;
