@@ -43,43 +43,9 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
 
     const __m512i off = _mm512_set1_epi8(8);
 
-    const int nb1 = nb - 2;
-    int i = 0;
-    for (; i < nb1; i += 2) {
+    for (int i = 0; i < nb; i += 2) {
         __m512i blk0 = _mm512_loadu_si512(&x[i]);
         __m512i blk1 = _mm512_loadu_si512(&y[i]);
-
-        const __m512 scales = _mm512_mul_ps(
-            blk_2_scales(blk0),
-            blk_2_scales(blk1)
-        );
-
-        const __m512i bx = blk_2_bytes(blk0);
-        __m512i by = blk_2_bytes(blk1);
-        by = _mm512_sub_epi8(by, off);
-
-        const __m512i aa = _mm512_dpbusds_epi32(
-            _mm512_setzero_epi32(),
-            bx, by
-        );
-        const __m512i bb = _mm512_dpbusds_epi32(
-            _mm512_setzero_epi32(),
-            off, by
-        );
-        const __m512i diff = _mm512_sub_epi32(aa, bb);
-
-        acc = _mm512_fmadd_ps(
-            scales,
-            _mm512_cvtepi32_ps(diff),
-            acc
-        );
-    }
-
-    if (i < nb) {
-        const __mmask64 blk_2_mask = 0xFF'FF'FF'FF'FFUL;
-
-        __m512i blk0 = _mm512_maskz_loadu_epi8(blk_2_mask, &x[i]);
-        __m512i blk1 = _mm512_maskz_loadu_epi8(blk_2_mask, &y[i]);
 
         const __m512 scales = _mm512_mul_ps(
             blk_2_scales(blk0),
