@@ -48,7 +48,16 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
         __m512i blk0 = _mm512_loadu_si512(&x[i]);
         __m512i blk1 = _mm512_loadu_si512(&y[i]);
 
+#ifdef __clang__
+        __m512i scales;
+        asm(
+            "vmulps %1, %2, %0%{%3%}"
+            : "=v" (scales)
+            : "vm" (blk0), "v" (blk1), "Yk" (scale_mul_mask)
+        );
+#else
         __m512 scales = _mm512_maskz_mul_ps(scale_mul_mask, (__m512)blk0, (__m512)blk1);
+#endif
         scales = _mm512_permutexvar_ps(prm, scales);
 
         const __m512i bx = blk_2_bytes(blk0);
