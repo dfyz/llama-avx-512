@@ -6,6 +6,7 @@
 #include "quantize_avx2-inl.h"
 
 inline static __m512i blk_2_bytes(__m512i x) {
+#ifdef __AVX512VBMI__
     const __m512i prm = _mm512_set_epi8(
         39, 38, 39, 38, 37, 36, 37, 36, 35, 34, 35, 34, 33, 32, 33, 32,
         31, 30, 31, 30, 29, 28, 29, 28, 27, 26, 27, 26, 25, 24, 25, 24,
@@ -13,6 +14,13 @@ inline static __m512i blk_2_bytes(__m512i x) {
         11, 10, 11, 10, 9, 8, 9, 8, 7, 6, 7, 6, 5, 4, 5, 4
     );
     const __m512i y = _mm512_permutexvar_epi8(prm, x);
+#else
+    const __m512i prm = _mm512_set_epi16(
+        19, 19, 18, 18, 17, 17, 16, 16, 15, 15, 14, 14, 13, 13, 12, 12,
+         9,  9,  8,  8,  7,  7,  6,  6,  5,  5,  4,  4,  3,  3,  2,  2
+    );
+    const __m512i y = _mm512_permutexvar_epi16(prm, x);
+#endif
 
     const __mmask32 shift_mask = 0xaaaaaaaa;
     const __m512i z = _mm512_mask_srai_epi16(y, shift_mask, y, 4);
