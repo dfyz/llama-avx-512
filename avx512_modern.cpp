@@ -41,6 +41,9 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
         0, 0, 0, 0
     );
 
+    const __m512i dot_init = _mm512_set1_epi32(4 * 64);
+    const __m512i neg8 = _mm512_set1_epi8(-8);
+
     for (int i = 0; i < nb; i += 2) {
         __m512i blk0 = _mm512_loadu_si512(&x[i]);
         __m512i blk1 = _mm512_loadu_si512(&y[i]);
@@ -49,22 +52,15 @@ inline static void ggml_vec_dot_q4_0(const int n, float * __restrict__ s, const 
         scales = _mm512_permutexvar_ps(prm, scales);
 
         const __m512i bx = blk_2_bytes(blk0);
-        __m512i by = blk_2_bytes(blk1);
-        by = _mm512_sub_epi8(by, off);
+        const __m512i by = blk_2_bytes(blk1);
+        const __m512i by8 = _mm512_sub_epi8(by, off);
 
-        const __m512i aa = _mm512_dpbusds_epi32(
-            _mm512_setzero_epi32(),
-            bx, by
-        );
-        const __m512i bb = _mm512_dpbusds_epi32(
-            _mm512_setzero_epi32(),
-            off, by
-        );
-        const __m512i diff = _mm512_sub_epi32(aa, bb);
+        const __m512i aa = _mm512_dpbusds_epi32(dot_init, by, neg8);
+        const __m512i bb = _mm512_dpbusds_epi32(aa, bx, by8);
 
         acc = _mm512_fmadd_ps(
             scales,
-            _mm512_cvtepi32_ps(diff),
+            _mm512_cvtepi32_ps(bb),
             acc
         );
     }
