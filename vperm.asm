@@ -12,13 +12,22 @@ vperm_byte:
     vmovupd zmm9, [rel rnd_9]
     vmovupd zmm11, [rel rnd_11]
 
+    mov     eax, 0xaaaaaaaa
+    kmovd   k1, eax
+
 loop_byte:
     vpermb zmm0, zmm13, zmm1
+    vpsraw zmm0{k1}, zmm0, 0x4
     vpermb zmm2, zmm13, zmm3
+    vpsraw zmm2{k1}, zmm2, 0x4
     vpermb zmm4, zmm13, zmm5
+    vpsraw zmm4{k1}, zmm4, 0x4
     vpermb zmm6, zmm13, zmm7
+    vpsraw zmm6{k1}, zmm6, 0x4
     vpermb zmm8, zmm13, zmm9
+    vpsraw zmm8{k1}, zmm8, 0x4
     vpermb zmm10, zmm13, zmm11
+    vpsraw zmm10{k1}, zmm10, 0x4
     dec rdi
     jnz loop_byte
 
@@ -35,13 +44,22 @@ vperm_word:
     vmovupd zmm9, [rel rnd_9]
     vmovupd zmm11, [rel rnd_11]
 
+    mov     eax, 0xaaaaaaaa
+    kmovd   k1, eax
+
 loop_word:
     vpermw zmm0, zmm13, zmm1
+    vpsraw zmm0{k1}, zmm0, 0x4
     vpermw zmm2, zmm13, zmm3
+    vpsraw zmm2{k1}, zmm2, 0x4
     vpermw zmm4, zmm13, zmm5
+    vpsraw zmm4{k1}, zmm4, 0x4
     vpermw zmm6, zmm13, zmm7
+    vpsraw zmm6{k1}, zmm6, 0x4
     vpermw zmm8, zmm13, zmm9
+    vpsraw zmm8{k1}, zmm8, 0x4
     vpermw zmm10, zmm13, zmm11
+    vpsraw zmm10{k1}, zmm10, 0x4
     dec rdi
     jnz loop_word
 
