@@ -6,6 +6,6 @@ int main() {
 	mprotect(x + 4096, 4096, PROT_NONE);
 
 	const size_t len = 40;
-	__m512i y = _mm512_maskz_loadu_epi8(0xFFFFFFFFFFULL, (__m512i*)(x + 4096 - 40));
-	__m512i z = _mm512_loadu_epi8((__m512i*)(x + 4096 - 40));
+	__m512i y = _mm512_maskz_loadu_epi8(0xFFFFFFFFFFULL, (__m512i*)(x + 4096 - len));
+	//__m512i z = _mm512_loadu_epi8((__m512i*)(x + 4096 - len));
 }
