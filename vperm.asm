@@ -70,7 +70,7 @@ _start:
     call vperm_word
 
     xor rdi, rdi
-    xor rax, 0x3c
+    mov eax, 0x3c
     syscall
 
 byte_perm:
